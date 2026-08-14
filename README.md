@@ -1,3 +1,10 @@
+> **Status: frozen (August 2026).** Caveman Code is no longer in active
+> development. It still installs and works, but expect no new features or
+> fixes. The lesson moved into [caveman](https://github.com/JuliusBrussee/caveman):
+> `caveman wrap` makes the agent you already use cheaper instead of replacing
+> it. Note: this package installs a `caveman` binary that shadows the caveman
+> CLI from that repo — uninstall one before installing the other.
+
 <div align="center">
 
 # 🪨 Caveman Code
