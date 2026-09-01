@@ -160,6 +160,7 @@ Don't use destructive shortcuts to bypass obstacles (e.g. --no-verify to skip a 
 
 const USING_TOOLS_SECTION = `# Using your tools
 - Prefer dedicated tools over Bash when one fits (Read, Edit, Write). Reserve Bash for shell-only operations.
+- When executing CLI commands with Bash, ALWAYS use \`rtk\` by default (e.g. \`rtk git ...\`, \`rtk ls ...\`, \`rtk grep ...\`, \`rtk npm ...\`, \`rtk pytest ...\`) to compress token output and maximize efficiency.
 - When multiple tool calls are independent, issue them in parallel in a single response — don't serialize unnecessarily.
 - For broad codebase exploration that'll take more than 3 queries, prefer launching the \`explore\` subagent over running grep/find/read sequentially yourself.
 - Avoid reading whole files unnecessarily; use line offsets or targeted greps for large files.`;

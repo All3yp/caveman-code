@@ -19,6 +19,9 @@
  * No TUI imports — this command is callable from non-TTY contexts.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import {
 	getEnvApiKey,
@@ -29,6 +32,7 @@ import {
 	type OAuthProviderInterface,
 } from "@juliusbrussee/caveman-ai";
 import chalk from "chalk";
+import { CONFIG_DIR_NAME, getAgentDir } from "../config.js";
 import { AuthStorage } from "../core/auth-storage.js";
 
 interface LoginOptions {
@@ -101,8 +105,52 @@ interface LoginStatus {
 	hint?: string;
 }
 
+function detectGitHubUser(stored?: unknown): string | undefined {
+	if (stored && typeof stored === "object") {
+		const rec = stored as Record<string, unknown>;
+		if (typeof rec.user === "string" && rec.user) return rec.user;
+		if (typeof rec.login === "string" && rec.login) return rec.login;
+	}
+	try {
+		const candidates = [
+			process.env.APPDATA ? join(process.env.APPDATA, "GitHub CLI", "hosts.yml") : null,
+			join(homedir(), ".config", "gh", "hosts.yml"),
+		].filter(Boolean) as string[];
+		for (const p of candidates) {
+			if (existsSync(p)) {
+				const content = readFileSync(p, "utf-8");
+				const m = content.match(/user:\s*([^\r\n]+)/);
+				if (m?.[1]) return m[1].trim();
+			}
+		}
+	} catch {
+		// ignore
+	}
+	return undefined;
+}
+
 function listAuthStatus(): LoginStatus[] {
-	const providers = ["anthropic", "openai", "google", "groq", "openrouter", "xai", "mistral", "github-copilot"];
+	const providers = [
+		"openai-codex",
+		"anthropic",
+		"github-copilot",
+		"google-antigravity",
+		"google-gemini-cli",
+		"grok",
+		"devworld",
+		"opencode",
+		"opencode-go",
+		"aihubmix",
+		"commandcode",
+		"nvidia",
+		"openrouter",
+		"google",
+		"openai",
+		"groq",
+		"xai",
+		"mistral",
+		"kktoken",
+	];
 	const out: LoginStatus[] = [];
 	const auth = AuthStorage.create();
 	for (const p of providers) {
@@ -112,16 +160,40 @@ function listAuthStatus(): LoginStatus[] {
 			continue;
 		}
 		try {
-			// AuthStorage exposes hasOAuthToken/getApiKey on cave's existing API.
-			const stored = (
-				auth as unknown as { getStoredOAuthCredentials?: (id: string) => unknown }
-			).getStoredOAuthCredentials?.(p);
+			const stored = auth.get(p);
 			if (stored) {
-				out.push({ provider: p, state: "oauth-stored", hint: "OAuth token stored" });
+				const isOAuth = (stored as { type?: string }).type === "oauth";
+				let hint = isOAuth ? "OAuth token stored" : "API key stored";
+				if (p === "github-copilot") {
+					const ghUser = detectGitHubUser(stored);
+					if (ghUser) hint = `OAuth token stored (${ghUser})`;
+				}
+				out.push({ provider: p, state: "oauth-stored", hint });
 				continue;
 			}
 		} catch {
 			// best-effort
+		}
+		if (p === "github-copilot") {
+			const ghUser = detectGitHubUser();
+			if (ghUser) {
+				out.push({
+					provider: p,
+					state: "no-auth",
+					hint: `gh CLI logged in as ${ghUser} (run: caveman login --provider github-copilot)`,
+				});
+				continue;
+			}
+		}
+		if (p === "grok") {
+			try {
+				if (existsSync(join(homedir(), ".grok", "auth.json"))) {
+					out.push({ provider: "grok", state: "oauth-stored", hint: "from ~/.grok/auth.json" });
+					continue;
+				}
+			} catch {
+				// ignore
+			}
 		}
 		out.push({ provider: p, state: "no-auth" });
 	}
@@ -160,6 +232,8 @@ async function runOAuth(providerId: string, opts: LoginOptions): Promise<number>
 			},
 			onManualCodeInput: async () => readLineQuestion("paste the redirect URL or code: "),
 		});
+		const auth = AuthStorage.create();
+		auth.set(providerId, { type: "oauth", ...credentials });
 		emit(
 			{
 				ok: true,
@@ -191,6 +265,19 @@ function emit(obj: Record<string, unknown>, json: boolean | undefined): void {
 }
 
 export async function runLogin(args: string[]): Promise<number> {
+	if (typeof process.loadEnvFile === "function") {
+		for (const envPath of [
+			join(homedir(), CONFIG_DIR_NAME, ".env"),
+			join(getAgentDir(), ".env"),
+			join(process.cwd(), ".env"),
+		]) {
+			try {
+				if (existsSync(envPath)) process.loadEnvFile(envPath);
+			} catch {
+				// ignore
+			}
+		}
+	}
 	const opts = parseLoginArgs(args);
 	if (opts.help) {
 		printHelp();

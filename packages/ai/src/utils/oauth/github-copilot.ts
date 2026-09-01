@@ -359,6 +359,25 @@ export async function loginGitHubCopilot(options: {
 	);
 	const credentials = await refreshGitHubCopilotToken(githubAccessToken, enterpriseDomain ?? undefined);
 
+	try {
+		const userUrl = enterpriseDomain ? `https://${enterpriseDomain}/api/v3/user` : "https://api.github.com/user";
+		const userRes = await fetch(userUrl, {
+			headers: {
+				Authorization: `Bearer ${githubAccessToken}`,
+				"User-Agent": "GitHubCopilotChat/0.35.0",
+				Accept: "application/json",
+			},
+		});
+		if (userRes.ok) {
+			const uData = (await userRes.json()) as { login?: string };
+			if (uData?.login) {
+				(credentials as Record<string, unknown>).user = uData.login;
+			}
+		}
+	} catch {
+		// best-effort
+	}
+
 	// Enable all models after successful login
 	options.onProgress?.("Enabling models...");
 	await enableAllGitHubCopilotModels(credentials.access, enterpriseDomain ?? undefined);

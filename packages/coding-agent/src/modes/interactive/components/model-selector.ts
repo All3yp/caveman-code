@@ -185,7 +185,14 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		const seenProviders = new Set<string>();
 		for (const model of this.allModels) seenProviders.add(model.provider);
 		for (const provider of seenProviders) {
-			this.authByProvider.set(provider, getProviderAuthStatus(provider));
+			const status = getProviderAuthStatus(provider);
+			const hasRegistryAuth = this.allModels.some(
+				(m) => m.provider === provider && this.modelRegistry.hasConfiguredAuth(m),
+			);
+			if (hasRegistryAuth) {
+				status.configured = true;
+			}
+			this.authByProvider.set(provider, status);
 		}
 
 		this.favoriteRefs = this.settingsManager.getFavoriteModels();
@@ -223,9 +230,21 @@ export class ModelSelectorComponent extends Container implements Focusable {
 
 		const matchesText = (model: Model<any>): boolean => {
 			if (!text) return true;
-			const haystack = `${model.id} ${model.provider} ${model.provider}/${model.id}`;
+			const haystack = `${model.id} ${model.name || ""} ${model.provider} ${model.provider}/${model.id}`;
 			const tokens = text.split(/\s+/).filter(Boolean);
-			return tokens.every((tok) => fuzzyMatch(tok, haystack).matches);
+			return tokens.every((tok) => {
+				const lowerTok = tok.toLowerCase();
+				if (lowerTok === ":free" || lowerTok === "free") {
+					return model.cost?.input === 0 && model.cost?.output === 0;
+				}
+				if (lowerTok === ":reasoning" || lowerTok === "🧠") {
+					return !!model.reasoning;
+				}
+				if (lowerTok === ":vision" || lowerTok === "👁") {
+					return !!model.input?.includes("image");
+				}
+				return fuzzyMatch(tok, haystack).matches;
+			});
 		};
 
 		const matchesPredicates = (model: Model<any>) => applyModelPredicates([model], parsed.predicates).length > 0;
@@ -273,6 +292,22 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		for (const model of visible) {
 			const list = byProvider.get(model.provider);
 			if (list) list.push(this.toItem(model));
+		}
+		if (text) {
+			const lowerText = text.toLowerCase();
+			for (const list of byProvider.values()) {
+				list.sort((a, b) => {
+					if (a.available !== b.available) return a.available ? -1 : 1;
+					const aPref = a.id.toLowerCase().startsWith(lowerText) || (a.model.name?.toLowerCase().startsWith(lowerText) ?? false);
+					const bPref = b.id.toLowerCase().startsWith(lowerText) || (b.model.name?.toLowerCase().startsWith(lowerText) ?? false);
+					if (aPref !== bPref) return aPref ? -1 : 1;
+					return a.id.localeCompare(b.id);
+				});
+			}
+		} else {
+			for (const list of byProvider.values()) {
+				list.sort((a, b) => a.id.localeCompare(b.id));
+			}
 		}
 
 		const groups = [];
@@ -331,12 +366,21 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		const all = new Set<string>();
 		for (const model of this.allModels) all.add(model.provider);
 		const list = Array.from(all);
+		const currentProv = this.currentModel?.provider;
+
+		const getPriority = (provider: string): number => {
+			if (currentProv && provider === currentProv) return 0;
+			const auth = this.authByProvider.get(provider);
+			if (auth?.configured) {
+				return auth.kind === "oauth" ? 1 : 2;
+			}
+			return 3;
+		};
+
 		list.sort((a, b) => {
-			const aConf = this.authByProvider.get(a)?.configured ? 0 : 1;
-			const bConf = this.authByProvider.get(b)?.configured ? 0 : 1;
-			if (aConf !== bConf) return aConf - bConf;
-			if (a === this.currentModel?.provider) return -1;
-			if (b === this.currentModel?.provider) return 1;
+			const pA = getPriority(a);
+			const pB = getPriority(b);
+			if (pA !== pB) return pA - pB;
 			return a.localeCompare(b);
 		});
 		return list;
@@ -374,27 +418,30 @@ export class ModelSelectorComponent extends Container implements Focusable {
 			return text;
 		};
 
-		const idLabel = colorize(item.id);
-		const ctx = formatContext(item.model.contextWindow);
-		const reasoning = item.model.reasoning ? "🧠" : " ";
-		const vision = item.model.input?.includes("image") ? "👁" : " ";
+		const rawId = item.id.length > 34 ? item.id.slice(0, 33) + "…" : item.id;
+		const idCol = colorize(rawId.padEnd(34));
+		const ctxVal = formatContext(item.model.contextWindow);
+		const ctxCol = theme.fg("muted", (ctxVal ? ctxVal : "").padStart(7));
+		const reasoning = item.model.reasoning ? "🧠 " : "   ";
+		const vision = item.model.input?.includes("image") ? "👁 " : "   ";
 		const inputCost = formatCost(item.model.cost?.input);
 		const outputCost = formatCost(item.model.cost?.output);
 		const costStr = inputCost && outputCost ? `${inputCost}/${outputCost}` : inputCost || "";
-
-		const badges: string[] = [];
-		if (ctx) badges.push(theme.fg("muted", ctx.padStart(5)));
-		badges.push(reasoning);
-		badges.push(vision);
-		if (costStr) badges.push(theme.fg("muted", costStr));
-		const check = isCurrent ? theme.fg("success", " ✓") : "";
+		const costCol = theme.fg("muted", costStr.padEnd(12));
+		const check = isCurrent ? theme.fg("success", " ✓") : "  ";
 		const prefix = isSelected ? theme.fg("accent", "→") : " ";
 
-		return `${prefix} ${indent}${star} ${idLabel}  ${badges.join(" ")}${check}`;
+		return `${prefix} ${indent}${star} ${idCol}  ${ctxCol}  ${reasoning}${vision} ${costCol}${check}`;
 	}
 
 	private refreshList(): void {
 		this.listContainer.clear();
+		const headerId = "MODEL ID".padEnd(34);
+		const headerCtx = "CTX".padStart(7);
+		const headerCost = "COST (IN/OUT)".padEnd(12);
+		this.listContainer.addChild(
+			new Text(theme.fg("dim", `       ${headerId}  ${headerCtx}  CAPS ${headerCost}`), 0, 0),
+		);
 		for (const line of this.listView.render(120)) {
 			this.listContainer.addChild(new Text(line, 0, 0));
 		}

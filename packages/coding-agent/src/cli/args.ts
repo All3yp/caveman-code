@@ -109,6 +109,10 @@ export function parseArgs(args: string[]): Args {
 			result.sessionDir = args[++i];
 		} else if (arg === "--models" && i + 1 < args.length) {
 			result.models = args[++i].split(",").map((s) => s.trim());
+		// TODO: Generalize `--<provider>-only` for other providers (e.g., `--grok-only`, `--anthropic-only`, `--commandcode-only`, etc.)
+		} else if (arg === "--copilot-only" || arg === "--copilot") {
+			result.provider = "github-copilot";
+			result.models = ["github-copilot/*"];
 		} else if (arg === "--no-tools") {
 			result.noTools = true;
 		} else if (arg === "--tools" && i + 1 < args.length) {
@@ -263,6 +267,7 @@ ${chalk.bold("Options:")}
   --no-session                   Don't save session (ephemeral)
   --models <patterns>            Comma-separated model patterns for Ctrl+P cycling
                                  Supports globs (anthropic/*, *sonnet*) and fuzzy matching
+  --copilot-only, --copilot      Use GitHub Copilot exclusively (restricts models to github-copilot/*)
   --no-tools                     Disable all built-in tools
   --tools <tools>                Comma-separated list of tools to enable (default: read,bash,edit,write)
                                  Available: read, bash, edit, write, grep, find, ls

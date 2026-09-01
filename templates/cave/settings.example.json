@@ -1,0 +1,17 @@
+{
+  "telemetry": {
+    "enabled": false
+  },
+  "compaction": {
+    "enabled": true
+  },
+  "rtk": {
+    "enabled": true
+  },
+  "defaultProvider": "commandcode",
+  "defaultModel": "poolside/laguna-s-2.1-free",
+  "defaultThinkingLevel": "medium",
+  "terminal": {
+    "clearOnShrink": true
+  }
+}

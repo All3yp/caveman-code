@@ -5,7 +5,9 @@
  * createAgentSession() options. The SDK does the heavy lifting.
  */
 
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { type ImageContent, modelsAreEqual, supportsXhigh } from "@juliusbrussee/caveman-ai";
 import {
@@ -36,7 +38,7 @@ import { selectSession } from "./cli/session-picker.js";
 import { runSelfUpdate } from "./cli/update.js";
 import { handleWatchCommand } from "./cli/watch.js";
 import { handleWorkerCommand } from "./cli/worker.js";
-import { getAgentDir, getModelsPath, VERSION } from "./config.js";
+import { CONFIG_DIR_NAME, getAgentDir, getModelsPath, VERSION } from "./config.js";
 import { type CreateAgentSessionRuntimeFactory, createAgentSessionRuntime } from "./core/agent-session-runtime.js";
 import {
 	type AgentSessionRuntimeDiagnostic,
@@ -499,6 +501,19 @@ async function emitDebugTermDiagnostic(): Promise<void> {
 }
 
 export async function main(args: string[]) {
+	if (typeof process.loadEnvFile === "function") {
+		for (const envPath of [
+			join(homedir(), CONFIG_DIR_NAME, ".env"),
+			join(getAgentDir(), ".env"),
+			join(process.cwd(), ".env"),
+		]) {
+			try {
+				if (existsSync(envPath)) process.loadEnvFile(envPath);
+			} catch {
+				// ignore
+			}
+		}
+	}
 	resetTimings();
 	installExitSafetyNet();
 	await emitDebugTermDiagnostic();

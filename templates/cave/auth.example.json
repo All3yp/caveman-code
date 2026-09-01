@@ -1,0 +1,27 @@
+{
+  "github-copilot": {
+    "type": "oauth",
+    "refresh": "ghu_EXAMPLE_REFRESH_TOKEN",
+    "access": "tid=EXAMPLE;exp=1234567890;proxy-ep=proxy.individual.githubcopilot.com",
+    "expires": 1789090874294,
+    "user": "YOUR_GITHUB_USERNAME"
+  },
+  "openai-codex": {
+    "type": "oauth",
+    "access": "EXAMPLE_ACCESS_TOKEN",
+    "refresh": "EXAMPLE_REFRESH_TOKEN",
+    "expires": 1789090874294
+  },
+  "anthropic": {
+    "type": "oauth",
+    "access": "sk-ant-oat01-EXAMPLE",
+    "refresh": "sk-ant-ort01-EXAMPLE",
+    "expires": 1789090874294
+  },
+  "google-antigravity": {
+    "type": "oauth",
+    "access": "ya29.EXAMPLE",
+    "refresh": "1//EXAMPLE",
+    "expires": 1789090874294
+  }
+}

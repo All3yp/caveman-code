@@ -1,5 +1,6 @@
 // NEVER convert to top-level imports - breaks browser/Vite builds (web-ui)
 let _existsSync: typeof import("node:fs").existsSync | null = null;
+let _readFileSync: typeof import("node:fs").readFileSync | null = null;
 let _homedir: typeof import("node:os").homedir | null = null;
 let _join: typeof import("node:path").join | null = null;
 
@@ -14,6 +15,7 @@ const NODE_PATH_SPECIFIER = "node:" + "path";
 if (typeof process !== "undefined" && (process.versions?.node || process.versions?.bun)) {
 	dynamicImport(NODE_FS_SPECIFIER).then((m) => {
 		_existsSync = (m as typeof import("node:fs")).existsSync;
+		_readFileSync = (m as typeof import("node:fs")).readFileSync;
 	});
 	dynamicImport(NODE_OS_SPECIFIER).then((m) => {
 		_homedir = (m as typeof import("node:os")).homedir;
@@ -109,6 +111,46 @@ export function getEnvApiKey(provider: any): string | undefined {
 		}
 	}
 
+	if (provider === "opencode-go") {
+		return process.env.OPENCODE_GO_API_KEY || process.env.OPENCODE_API_KEY;
+	}
+
+	if (provider === "commandcode") {
+		if (process.env.CMD_API_KEY || process.env.COMMANDCODE_API_KEY) {
+			return process.env.CMD_API_KEY || process.env.COMMANDCODE_API_KEY;
+		}
+		try {
+			if (_existsSync && _homedir && _join && _readFileSync) {
+				const cmdcAuth = _join(_homedir(), ".commandcode", "auth.json");
+				if (_existsSync(cmdcAuth)) {
+					const parsed = JSON.parse(_readFileSync(cmdcAuth, "utf8"));
+					if (parsed.apiKey) return parsed.apiKey;
+					return "<authenticated>";
+				}
+			}
+		} catch {
+			// ignore
+		}
+	}
+
+	if (provider === "grok") {
+		if (process.env.XAI_API_KEY) return process.env.XAI_API_KEY;
+		try {
+			if (_existsSync && _homedir && _join && _readFileSync) {
+				const grokAuth = _join(_homedir(), ".grok", "auth.json");
+				if (_existsSync(grokAuth)) {
+					const parsed = JSON.parse(_readFileSync(grokAuth, "utf8"));
+					const first = Object.values(parsed)[0] as { key?: string; access_token?: string } | undefined;
+					if (first?.key) return first.key;
+					if (first?.access_token) return first.access_token;
+					return "<authenticated>";
+				}
+			}
+		} catch {
+			// ignore
+		}
+	}
+
 	const envMap: Record<string, string> = {
 		openai: "OPENAI_API_KEY",
 		"azure-openai-responses": "AZURE_OPENAI_API_KEY",
@@ -126,10 +168,20 @@ export function getEnvApiKey(provider: any): string | undefined {
 		opencode: "OPENCODE_API_KEY",
 		"opencode-go": "OPENCODE_API_KEY",
 		"kimi-coding": "KIMI_API_KEY",
+		nvidia: "NVIDIA_API_KEY",
+		aihubmix: "AIHUBMIX_API_KEY",
+		commandcode: "CMD_API_KEY",
+		devworld: "DEVWORLD_API_KEY",
+		kktoken: "KKTOKEN_API_KEY",
 	};
 
 	const envVar = envMap[provider];
-	return envVar ? process.env[envVar] : undefined;
+	if (envVar && process.env[envVar]) {
+		return process.env[envVar];
+	}
+
+	const genericVar = `${provider.toUpperCase().replace(/-/g, "_")}_API_KEY`;
+	return process.env[genericVar];
 }
 
 export const ENV_VAR_BY_PROVIDER: Record<string, string> = {
@@ -150,6 +202,11 @@ export const ENV_VAR_BY_PROVIDER: Record<string, string> = {
 	opencode: "OPENCODE_API_KEY",
 	"opencode-go": "OPENCODE_API_KEY",
 	"kimi-coding": "KIMI_API_KEY",
+	nvidia: "NVIDIA_API_KEY",
+	aihubmix: "AIHUBMIX_API_KEY",
+	commandcode: "CMD_API_KEY",
+	kktoken: "KKTOKEN_API_KEY",
+	devworld: "DEVWORLD_API_KEY",
 };
 
 const OAUTH_PROVIDERS = new Set([
@@ -250,6 +307,47 @@ export function getProviderAuthStatus(provider: string): ProviderAuthStatus {
 		return { kind: "file", configured: true };
 	}
 
+	if (provider === "opencode-go") {
+		const val = process.env.OPENCODE_GO_API_KEY || process.env.OPENCODE_API_KEY;
+		if (val) return { kind: "env", configured: true, envVar: process.env.OPENCODE_GO_API_KEY ? "OPENCODE_GO_API_KEY" : "OPENCODE_API_KEY" };
+		return { kind: "missing", configured: false, hint: "set OPENCODE_GO_API_KEY or OPENCODE_API_KEY", envVar: "OPENCODE_GO_API_KEY" };
+	}
+
+	if (provider === "commandcode") {
+		const val = process.env.CMD_API_KEY || process.env.COMMANDCODE_API_KEY;
+		if (val) return { kind: "env", configured: true, envVar: process.env.CMD_API_KEY ? "CMD_API_KEY" : "COMMANDCODE_API_KEY" };
+		try {
+			if (_existsSync && _homedir && _join) {
+				const cmdcAuth = _join(_homedir(), ".commandcode", "auth.json");
+				if (_existsSync(cmdcAuth)) {
+					return { kind: "oauth", configured: true, hint: "from ~/.commandcode/auth.json" };
+				}
+			}
+		} catch {
+			// ignore
+		}
+		return { kind: "missing", configured: false, hint: "set CMD_API_KEY or login with cmdc", envVar: "CMD_API_KEY" };
+	}
+
+	if (provider === "grok") {
+		if (process.env.XAI_API_KEY) return { kind: "env", configured: true, envVar: "XAI_API_KEY" };
+		try {
+			if (_existsSync && _homedir && _join) {
+				const grokAuth = _join(_homedir(), ".grok", "auth.json");
+				if (_existsSync(grokAuth)) {
+					return { kind: "oauth", configured: true, hint: "from ~/.grok/auth.json" };
+				}
+			}
+		} catch {
+			// ignore
+		}
+		return { kind: "missing", configured: false, hint: "login with grok CLI or set XAI_API_KEY" };
+	}
+
+	if (provider === "ollama") {
+		return { kind: "env", configured: true, hint: "local" };
+	}
+
 	if (OAUTH_PROVIDERS.has(provider)) {
 		return {
 			kind: "oauth",
@@ -263,6 +361,11 @@ export function getProviderAuthStatus(provider: string): ProviderAuthStatus {
 		const value = process.env[envVar];
 		if (value) return { kind: "env", configured: true, envVar };
 		return { kind: "missing", configured: false, hint: `set ${envVar}`, envVar };
+	}
+
+	const genericVar = `${provider.toUpperCase().replace(/-/g, "_")}_API_KEY`;
+	if (process.env[genericVar]) {
+		return { kind: "env", configured: true, envVar: genericVar };
 	}
 
 	return { kind: "missing", configured: false, hint: "no known auth source" };

@@ -16,6 +16,13 @@ import { DynamicBorder } from "./dynamic-border.js";
 // EnabledIds: null = all enabled (no filter), string[] = explicit ordered list
 type EnabledIds = string[] | null;
 
+function formatContext(window: number | undefined): string {
+	if (!window || window <= 0) return "";
+	if (window >= 1_000_000) return `${(window / 1_000_000).toFixed(window % 1_000_000 === 0 ? 0 : 1)}M`;
+	if (window >= 1_000) return `${Math.round(window / 1_000)}k`;
+	return `${window}`;
+}
+
 function isEnabled(enabledIds: EnabledIds, id: string): boolean {
 	return enabledIds === null || enabledIds.includes(id);
 }
@@ -178,7 +185,9 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 	private refresh(): void {
 		const query = this.searchInput.getValue();
 		const items = this.buildItems();
-		this.filteredItems = query ? fuzzyFilter(items, query, (i) => `${i.model.id} ${i.model.provider}`) : items;
+		this.filteredItems = query
+			? fuzzyFilter(items, query, (i) => `${i.model.id} ${i.model.name} ${i.model.provider} ${i.model.provider}/${i.model.id}`)
+			: items;
 		this.selectedIndex = Math.min(this.selectedIndex, Math.max(0, this.filteredItems.length - 1));
 		this.updateList();
 		this.footerText.setText(this.getFooterText());
@@ -199,14 +208,29 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 		const endIndex = Math.min(startIndex + this.maxVisible, this.filteredItems.length);
 		const allEnabled = this.enabledIds === null;
 
+		const headerId = "MODEL ID".padEnd(34);
+		const headerProv = "PROVIDER".padEnd(18);
+		const headerCtx = "CTX".padStart(6);
+		this.listContainer.addChild(
+			new Text(theme.fg("dim", `    ${headerId}  ${headerProv}  ${headerCtx}  CAPS   STATUS`), 0, 0),
+		);
+
 		for (let i = startIndex; i < endIndex; i++) {
 			const item = this.filteredItems[i]!;
 			const isSelected = i === this.selectedIndex;
 			const prefix = isSelected ? theme.fg("accent", "→ ") : "  ";
-			const modelText = isSelected ? theme.fg("accent", item.model.id) : item.model.id;
-			const providerBadge = theme.fg("muted", ` [${item.model.provider}]`);
-			const status = allEnabled ? "" : item.enabled ? theme.fg("success", " ✓") : theme.fg("dim", " ✗");
-			this.listContainer.addChild(new Text(`${prefix}${modelText}${providerBadge}${status}`, 0, 0));
+			const rawId = item.model.id.length > 34 ? item.model.id.slice(0, 33) + "…" : item.model.id;
+			const modelText = isSelected ? theme.fg("accent", rawId.padEnd(34)) : rawId.padEnd(34);
+			const rawProv = `[${item.model.provider}]`;
+			const providerBadge = theme.fg("muted", rawProv.padEnd(18));
+			const ctxVal = item.model.contextWindow ? formatContext(item.model.contextWindow) : "";
+			const ctxCol = theme.fg("muted", ctxVal.padStart(6));
+			const reasoning = item.model.reasoning ? "🧠" : "  ";
+			const vision = item.model.input?.includes("image") ? "👁" : "  ";
+			const status = allEnabled ? "   " : item.enabled ? theme.fg("success", "  ✓") : theme.fg("dim", "  ✗");
+			this.listContainer.addChild(
+				new Text(`${prefix}  ${modelText}  ${providerBadge}  ${ctxCol}  ${reasoning} ${vision}   ${status}`, 0, 0),
+			);
 		}
 
 		// Add scroll indicator if needed
