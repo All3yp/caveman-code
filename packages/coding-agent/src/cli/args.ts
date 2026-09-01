@@ -235,6 +235,7 @@ ${chalk.bold("Usage:")}
   ${APP_NAME} [options] [@files...] [messages...]
 
  ${chalk.bold("Commands:")}
+  ${APP_NAME} setup                           Initialize ~/.cave configuration from templates
   ${APP_NAME} doctor                          Report system health (Node, terminal, auth, providers)
   ${APP_NAME} login [<provider>]              OAuth authentication
   ${APP_NAME} self-update                     Check and install updates

@@ -36,6 +36,7 @@ import { handleRunRecipeCommand } from "./cli/run-recipe.js";
 import { handleServeCommand } from "./cli/serve.js";
 import { selectSession } from "./cli/session-picker.js";
 import { runSelfUpdate } from "./cli/update.js";
+import { runSetup } from "./cli/setup.js";
 import { handleWatchCommand } from "./cli/watch.js";
 import { handleWorkerCommand } from "./cli/worker.js";
 import { CONFIG_DIR_NAME, getAgentDir, getModelsPath, VERSION } from "./config.js";
@@ -537,6 +538,19 @@ export async function main(args: string[]) {
 	if (args[0] === "login") {
 		const code = await runLogin(args.slice(1));
 		process.exit(code);
+	}
+	if (args[0] === "setup" || args[0] === "init") {
+		const code = await runSetup(args.slice(1));
+		process.exit(code);
+	}
+
+	// Auto-initialize ~/.cave from templates on first run if models.json is missing
+	if (!existsSync(join(getAgentDir(), "models.json"))) {
+		try {
+			await runSetup();
+		} catch {
+			// best-effort
+		}
 	}
 
 	if (await handlePackageCommand(args)) {
