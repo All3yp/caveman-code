@@ -58,3 +58,20 @@ TODO.md
 # kept out of git — CSV+JSON top-level files are committed for audit)
 /research/results/honest-bench-*/
 /research/results/honest-bench-full-*.log
+
+# Active configuration files - ALWAYS HIDDEN / NEVER TRACK (user copies from *.example.*)
+models.json
+**/models.json
+settings.json
+**/settings.json
+auth.json
+**/auth.json
+mcp.json
+**/mcp.json
+.env
+**/.env
+.env.*
+!**/*.example.json
+!**/.env.example
+
+

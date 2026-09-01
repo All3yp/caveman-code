@@ -385,6 +385,12 @@ export class ModelRegistry {
 	}
 
 	private loadCustomModels(modelsJsonPath: string): CustomModelsResult {
+		if (modelsJsonPath.includes(".example.") || modelsJsonPath.endsWith(".example.json")) {
+			return emptyCustomModelsResult(
+				`Cannot use example file directly: "${modelsJsonPath}". Copy to "models.json" and configure your active settings.`,
+			);
+		}
+
 		if (!existsSync(modelsJsonPath)) {
 			return emptyCustomModelsResult();
 		}

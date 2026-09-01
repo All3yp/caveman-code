@@ -17,8 +17,9 @@ console.log(`Setting up Caveman environment in ${targetBase}...`);
 mkdirSync(targetAgent, { recursive: true });
 
 const filesToCopy = [
-	{ src: join(templatesDir, "models.json"), dest: join(targetAgent, "models.json"), label: "Models configuration" },
+	{ src: join(templatesDir, "models.example.json"), dest: join(targetAgent, "models.json"), label: "Models configuration" },
 	{ src: join(templatesDir, "models.example.json"), dest: join(targetAgent, "models.example.json"), label: "Models example" },
+	{ src: join(templatesDir, "settings.example.json"), dest: join(targetAgent, "settings.json"), label: "Settings configuration" },
 	{ src: join(templatesDir, "settings.example.json"), dest: join(targetAgent, "settings.example.json"), label: "Settings example" },
 	{ src: join(templatesDir, "auth.example.json"), dest: join(targetAgent, "auth.example.json"), label: "Auth example" },
 	{ src: join(templatesDir, ".env.example"), dest: join(targetBase, ".env.example"), label: "Environment example" },
