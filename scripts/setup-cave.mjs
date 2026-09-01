@@ -21,7 +21,6 @@ const filesToCopy = [
 	{ src: join(templatesDir, "models.example.json"), dest: join(targetAgent, "models.example.json"), label: "Models example" },
 	{ src: join(templatesDir, "settings.example.json"), dest: join(targetAgent, "settings.json"), label: "Settings configuration" },
 	{ src: join(templatesDir, "settings.example.json"), dest: join(targetAgent, "settings.example.json"), label: "Settings example" },
-	{ src: join(templatesDir, "auth.example.json"), dest: join(targetAgent, "auth.example.json"), label: "Auth example" },
 	{ src: join(templatesDir, ".env.example"), dest: join(targetBase, ".env.example"), label: "Environment example" },
 	{ src: join(templatesDir, "mcp.example.json"), dest: join(targetBase, "mcp.example.json"), label: "MCP example" },
 ];
