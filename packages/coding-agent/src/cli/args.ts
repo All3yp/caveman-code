@@ -112,6 +112,7 @@ export function parseArgs(args: string[]): Args {
 		// TODO: Generalize `--<provider>-only` for other providers (e.g., `--grok-only`, `--anthropic-only`, `--commandcode-only`, etc.)
 		} else if (arg === "--copilot-only" || arg === "--copilot") {
 			result.provider = "github-copilot";
+			result.model = result.model || "github-copilot/claude-sonnet-4.5";
 			result.models = ["github-copilot/*"];
 		} else if (arg === "--no-tools") {
 			result.noTools = true;
